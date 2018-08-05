@@ -156,6 +156,9 @@ public class SignaturePad extends View {
         mLastWidth = (mMinWidth + mMaxWidth) / 2;
 
         if (mSignatureBitmap != null) {
+            if(!mSignatureBitmap.isRecycled()){
+                mSignatureBitmap.recycle();
+            }
             mSignatureBitmap = null;
             ensureSignatureBitmap();
         }
@@ -586,6 +589,24 @@ public class SignaturePad extends View {
         strokes[2] = Math.min(imgWidth, strokeRight);
         strokes[3] = Math.min(imgHeight, strokeBottom);
         return strokes;
+    }
+
+    public Bitmap getCompressedTransparentSignatureBitmapTrimOnStrokes(int compressPercentage){
+        if (compressPercentage < 0) {
+            compressPercentage = 0;
+        } else if (compressPercentage > 100) {
+            compressPercentage = 100;
+        }
+        Bitmap originalBitmap = getTransparentSignatureBitmapTrimOnStrokes();
+        int originalWidth = originalBitmap.getWidth();
+        int originalHeight = originalBitmap.getHeight();
+
+        int targetWidth = originalWidth * compressPercentage / 100; // your arbitrary fixed limit
+        int targetHeight = (int) (originalHeight * targetWidth / (double) originalWidth);
+
+        Bitmap scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, targetWidth, targetHeight, true);
+        originalBitmap.recycle();
+        return scaledBitmap;
     }
 
     public Bitmap getTransparentSignatureBitmapTrimOnStrokes() {
