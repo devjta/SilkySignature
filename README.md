@@ -18,12 +18,13 @@ Bug fixed
 
 Download
 --------
+Download forked version
+```
+https://jitpack.io/#devjta/SilkySignature
+```
 
 Download SilkySignature or grab via Gradle:
 
-```forked
-https://jitpack.io/#devjta/SilkySignature
-```
 
 ```groovy
 compile 'com.williamww:silky-signature:0.1.0'
