@@ -8,8 +8,14 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
+import android.graphics.Typeface;
+import android.support.annotation.ColorInt;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
@@ -22,11 +28,22 @@ import com.williamww.silkysignature.utils.TimedPoint;
 import com.williamww.silkysignature.view.ViewCompat;
 import com.williamww.silkysignature.view.ViewTreeObserverCompat;
 
+import org.w3c.dom.Text;
+
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class SignaturePad extends View {
+    private static final int TEXT_PADDING_PX = 10;
+    public static final int TEXT_HORIZONTAL_ALIGN_CENTER = 1;
+    public static final int TEXT_HORIZONTAL_ALIGN_START = 2;
+    public static final int TEXT_HORIZONTAL_ALIGN_END = 3;
+
+    public static final int TEXT_VERTICLAL_ALIGN_CENTER = 1;
+    public static final int TEXT_VERTICLAL_ALIGN_TOP = 2;
+    public static final int TEXT_VERTICLAL_ALIGN_BOTTOM = 3;
+
     //View state
     private List<TimedPoint> mPoints;
     private boolean mIsEmpty;
@@ -66,14 +83,26 @@ public class SignaturePad extends View {
     private Bitmap mSignatureBitmap = null;
     private Canvas mSignatureBitmapCanvas = null;
     protected float strokeLeft = -1, strokeRight = -1, strokeTop = -1, strokeBottom = -1;
+    protected TextBuilder lastText;
+
+    public SignaturePad(Context context){
+        super(context);
+        init(null);
+    }
 
     public SignaturePad(Context context, AttributeSet attrs) {
         super(context, attrs);
+        init(attrs);
+    }
 
-        TypedArray a = context.getTheme().obtainStyledAttributes(
-                attrs,
-                R.styleable.SignaturePad,
-                0, 0);
+    protected void init(AttributeSet attrs){
+        TypedArray a;
+        if(attrs != null) {
+            a = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.SignaturePad,0, 0);
+        }
+        else{
+            a = getContext().getTheme().obtainStyledAttributes(R.styleable.SignaturePad);
+        }
 
         //Configurable parameters
         try {
@@ -559,23 +588,33 @@ public class SignaturePad extends View {
             float strokeWidth = startWidth + ttt * widthDelta;
             // Set the incremental stroke width and draw.
             mPaint.setStrokeWidth(strokeWidth);
-            if(strokeLeft == -1 || x - strokeWidth < strokeLeft){
-                strokeLeft = x - strokeWidth;
-            }
-            if(strokeRight == -1 || x + strokeWidth > strokeRight){
-                strokeRight = x + strokeWidth;
-            }
-            if(strokeTop == -1 || y - strokeWidth < strokeTop){
-                strokeTop = y - strokeWidth;
-            }
-            if(strokeBottom == -1 || y + strokeWidth > strokeBottom){
-                strokeBottom = y + strokeWidth;
-            }
+            setStrokes(x, y, strokeWidth);
             mSignatureBitmapCanvas.drawPoint(x, y, mPaint);
             expandDirtyRect(x, y);
         }
 
         mPaint.setStrokeWidth(originalWidth);
+    }
+
+    /**
+     *
+     * @param x
+     * @param y
+     * @param strokeWidth
+     */
+    protected void setStrokes(float x, float y, float strokeWidth){
+        if(strokeLeft == -1 || x - strokeWidth < strokeLeft){
+            strokeLeft = x - strokeWidth;
+        }
+        if(strokeRight == -1 || x + strokeWidth > strokeRight){
+            strokeRight = x + strokeWidth;
+        }
+        if(strokeTop == -1 || y - strokeWidth < strokeTop){
+            strokeTop = y - strokeWidth;
+        }
+        if(strokeBottom == -1 || y + strokeWidth > strokeBottom){
+            strokeBottom = y + strokeWidth;
+        }
     }
 
     public float[] getSafeStrokes(){
@@ -688,6 +727,32 @@ public class SignaturePad extends View {
         return Bitmap.createBitmap(mSignatureBitmap, xMin, yMin, xMax - xMin + 1, yMax - yMin + 1);
     }
 
+    /**
+     * Adds a text with defaults
+     * @param text
+     * @return
+     */
+    public void insertStaticText(String text){
+        if(lastText != null){
+            lastText.clear();
+        }
+        lastText =  new TextBuilder(text);
+        lastText.build();
+    }
+
+    /**
+     * Returns a builder to modify the properties of text-inserting - need to run build to add the text
+     * @param text
+     * @return
+     */
+    public TextBuilder addStaticText(String text){
+        if(lastText != null){
+            lastText.clear();
+        }
+        lastText = new TextBuilder(text);
+        return lastText;
+    }
+
     private ControlTimedPoints calculateCurveControlPoints(TimedPoint s1, TimedPoint s2, TimedPoint s3) {
         float dx1 = s1.x - s2.x;
         float dy1 = s1.y - s2.y;
@@ -773,8 +838,12 @@ public class SignaturePad extends View {
         }
     }
 
-    private int convertDpToPx(float dp) {
+    int convertDpToPx(float dp) {
         return Math.round(getContext().getResources().getDisplayMetrics().density * dp);
+    }
+
+    int convertPxToDp(float px){
+        return Math.round(px / ((float)getContext().getResources().getDisplayMetrics().densityDpi / DisplayMetrics.DENSITY_DEFAULT));
     }
 
     public interface OnSignedListener {
@@ -783,5 +852,87 @@ public class SignaturePad extends View {
         void onSigned();
 
         void onClear();
+    }
+
+    public class TextBuilder{
+        private String text;
+        private @ColorInt int color = Color.BLACK;
+        private int textSize = 25;
+        private int verticalAlign = TEXT_VERTICLAL_ALIGN_BOTTOM, horizontalAlign = TEXT_HORIZONTAL_ALIGN_CENTER;
+        private Typeface typeface = Typeface.MONOSPACE;
+        private float x,y, textLen, textHeight;
+
+        private TextBuilder(String text){
+            this.text = text;
+        }
+
+        public TextBuilder withFontTypeFace(Typeface typeFace){
+            this.typeface = typeFace;
+            return this;
+        }
+
+        public TextBuilder withFontSize(int textSize){
+            this.textSize = textSize;
+            return this;
+        }
+
+        public TextBuilder withFontColor(@ColorInt int color){
+            this.color = color;
+            return this;
+        }
+
+        public TextBuilder alignVertical(int verticalAlign){
+            this.verticalAlign = verticalAlign;
+            return this;
+        }
+
+        public TextBuilder alignHorizontal(int horizontalAlign){
+            this.horizontalAlign = horizontalAlign;
+            return this;
+        }
+
+        public void build(){
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+            paint.setTypeface(typeface);
+            paint.setColor(color);
+            paint.setTextSize(textSize * getResources().getDisplayMetrics().density);
+            paint(paint);
+        }
+
+        private void paint(Paint paint){
+            textLen = paint.measureText(text);
+            textHeight = paint.descent() - paint.ascent();
+            x = getWidth() / 2 - textLen / 2; //default horizontal is center
+            if(horizontalAlign == TEXT_HORIZONTAL_ALIGN_START){
+                x = 0 + convertPxToDp(TEXT_PADDING_PX);
+            }else if(horizontalAlign == TEXT_HORIZONTAL_ALIGN_END){
+                x = getWidth() - textLen - convertPxToDp(TEXT_PADDING_PX);
+            }
+            if(verticalAlign == TEXT_VERTICLAL_ALIGN_TOP){
+                y = 0 + convertPxToDp(TEXT_PADDING_PX) + textHeight;
+            }
+            else if(verticalAlign == TEXT_VERTICLAL_ALIGN_CENTER){
+                y = getHeight() / 2 - (textHeight / 2);
+            }
+            else if(verticalAlign == TEXT_VERTICLAL_ALIGN_BOTTOM){
+                y = getHeight() - convertPxToDp(TEXT_PADDING_PX) - textHeight;
+            }
+            ensureSignatureBitmap();
+            mSignatureBitmapCanvas.drawText(text, x, y, paint);
+//            invalidate(Math.round(x), Math.round(y), Math.round(x + textLen), Math.round(y - textHeight));
+            invalidate();
+            setStrokes(x, y, 2);
+            setStrokes(x + textLen, y - textHeight, 2);
+        }
+
+        private void clear(){
+            Paint clearPaint = new Paint();
+            clearPaint.setTypeface(typeface);
+            clearPaint.setColor(Color.TRANSPARENT);
+            clearPaint.setTextSize((textSize )* getResources().getDisplayMetrics().density);
+            clearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            mSignatureBitmapCanvas.drawRect(x, y, x + textLen, y - textHeight, clearPaint);
+//            invalidate(Math.round(x), Math.round(y), Math.round(x + textLen), Math.round(y - textHeight));
+        }
     }
 }
