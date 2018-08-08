@@ -617,6 +617,10 @@ public class SignaturePad extends View {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public float[] getSafeStrokes(){
         float strokes[] = new float[4];
         ensureSignatureBitmap();
@@ -630,6 +634,11 @@ public class SignaturePad extends View {
         return strokes;
     }
 
+    /**
+     *
+     * @param compressPercentage
+     * @return
+     */
     public Bitmap getCompressedTransparentSignatureBitmapTrimOnStrokes(int compressPercentage){
         if (compressPercentage < 0) {
             compressPercentage = 0;
@@ -648,14 +657,15 @@ public class SignaturePad extends View {
         return scaledBitmap;
     }
 
+    /**
+     *
+     * @return
+     */
     public Bitmap getTransparentSignatureBitmapTrimOnStrokes() {
         ensureSignatureBitmap();
-
         int imgHeight = mSignatureBitmap.getHeight();
         int imgWidth = mSignatureBitmap.getWidth();
-
         int backgroundColor = Color.TRANSPARENT;
-
         int xMin = Integer.MAX_VALUE,
                 xMax = Integer.MIN_VALUE,
                 yMin = Integer.MAX_VALUE,
@@ -902,27 +912,33 @@ public class SignaturePad extends View {
         private void paint(Paint paint){
             textLen = paint.measureText(text);
             textHeight = paint.descent() - paint.ascent();
+            float padding = convertPxToDp(TEXT_PADDING_PX);
             x = getWidth() / 2 - textLen / 2; //default horizontal is center
             if(horizontalAlign == TEXT_HORIZONTAL_ALIGN_START){
                 x = 0 + convertPxToDp(TEXT_PADDING_PX);
             }else if(horizontalAlign == TEXT_HORIZONTAL_ALIGN_END){
-                x = getWidth() - textLen - convertPxToDp(TEXT_PADDING_PX);
+                x = getWidth() - textLen - padding;
             }
             if(verticalAlign == TEXT_VERTICLAL_ALIGN_TOP){
-                y = 0 + convertPxToDp(TEXT_PADDING_PX) + textHeight;
+                y = 0 + padding + textHeight;
             }
             else if(verticalAlign == TEXT_VERTICLAL_ALIGN_CENTER){
                 y = getHeight() / 2 - (textHeight / 2);
             }
             else if(verticalAlign == TEXT_VERTICLAL_ALIGN_BOTTOM){
-                y = getHeight() - convertPxToDp(TEXT_PADDING_PX) - textHeight;
+                y = getHeight() - padding - textHeight;
             }
             ensureSignatureBitmap();
             mSignatureBitmapCanvas.drawText(text, x, y, paint);
 //            invalidate(Math.round(x), Math.round(y), Math.round(x + textLen), Math.round(y - textHeight));
             invalidate();
-            setStrokes(x, y, 2);
-            setStrokes(x + textLen, y - textHeight, 2);
+//            System.out.println("SETTING STROKES x:" + (x - padding) +" y: "+ ( y - textHeight - padding * 2));
+            setStrokes(x - padding, y - textHeight - padding * 2, 2);
+//            System.out.println("SETTING STROKES x:" + (x + textLen + padding) +" y: "+ ( y + textHeight + padding));
+            setStrokes(x + textLen + padding, y + textHeight + padding, 2);
+            if(mOnSignedListener != null){
+                mOnSignedListener.onSigned();
+            }
         }
 
         private void clear(){
@@ -931,7 +947,7 @@ public class SignaturePad extends View {
             clearPaint.setColor(Color.TRANSPARENT);
             clearPaint.setTextSize((textSize )* getResources().getDisplayMetrics().density);
             clearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            mSignatureBitmapCanvas.drawRect(x, y, x + textLen, y - textHeight, clearPaint);
+            mSignatureBitmapCanvas.drawRect(x, y - textHeight, x + textLen, y + convertPxToDp(2), clearPaint);
 //            invalidate(Math.round(x), Math.round(y), Math.round(x + textLen), Math.round(y - textHeight));
         }
     }
