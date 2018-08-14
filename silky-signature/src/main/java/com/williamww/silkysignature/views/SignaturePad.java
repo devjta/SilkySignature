@@ -867,7 +867,7 @@ public class SignaturePad extends View {
     public class TextBuilder{
         private String text;
         private @ColorInt int color = Color.BLACK;
-        private int textSize = 25;
+        private int maxTextSize = 25 , minTextSize = 5;
         private int verticalAlign = TEXT_VERTICLAL_ALIGN_BOTTOM, horizontalAlign = TEXT_HORIZONTAL_ALIGN_CENTER;
         private Typeface typeface = Typeface.MONOSPACE;
         private float x,y, textLen, textHeight;
@@ -881,8 +881,18 @@ public class SignaturePad extends View {
             return this;
         }
 
+        @Deprecated
         public TextBuilder withFontSize(int textSize){
-            this.textSize = textSize;
+            return withMinFontSize(5).withMaxFontSize(textSize);
+        }
+
+        public TextBuilder withMaxFontSize(int maxTextSize){
+            this.maxTextSize = maxTextSize;
+            return this;
+        }
+
+        public TextBuilder withMinFontSize(int minTextSize){
+            this.minTextSize = minTextSize;
             return this;
         }
 
@@ -905,12 +915,21 @@ public class SignaturePad extends View {
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
             paint.setTypeface(typeface);
             paint.setColor(color);
-            paint.setTextSize(textSize * getResources().getDisplayMetrics().density);
+            paint.setTextSize(maxTextSize * getResources().getDisplayMetrics().density);
             paint(paint);
         }
 
         private void paint(Paint paint){
             textLen = paint.measureText(text);
+            int tmpSize = maxTextSize;
+            while(textLen > getWidth()){
+                tmpSize--;
+                if(tmpSize < minTextSize || tmpSize == 0){
+                    break;
+                }
+                paint.setTextSize(tmpSize * getResources().getDisplayMetrics().density);
+                textLen = paint.measureText(text);
+            }
             textHeight = paint.descent() - paint.ascent();
             float padding = convertPxToDp(TEXT_PADDING_PX);
             x = getWidth() / 2 - textLen / 2; //default horizontal is center
@@ -945,9 +964,9 @@ public class SignaturePad extends View {
             Paint clearPaint = new Paint();
             clearPaint.setTypeface(typeface);
             clearPaint.setColor(Color.TRANSPARENT);
-            clearPaint.setTextSize((textSize )* getResources().getDisplayMetrics().density);
+            clearPaint.setTextSize(maxTextSize * getResources().getDisplayMetrics().density);
             clearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-            mSignatureBitmapCanvas.drawRect(x, y - textHeight, x + textLen, y + convertPxToDp(2), clearPaint);
+            mSignatureBitmapCanvas.drawRect(x, y - textHeight, x + textLen, y + convertPxToDp(TEXT_PADDING_PX), clearPaint);
 //            invalidate(Math.round(x), Math.round(y), Math.round(x + textLen), Math.round(y - textHeight));
         }
     }
