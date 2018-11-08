@@ -9,9 +9,17 @@ A smooth and silky signature pad for android.
 Updates
 --------
 Method added
-* ` getCompressedSignatureBitmap(int compressLevel)`  - compressLeven is from 1-100, which mean compress percentage of bitmap
-* ` getFixedSizeSignatureBitmap(int desiredWidth)`  - desiredWidth is target width, which would adjust height automatically
-* ` getFixedSizeSignatureBitmap(int desiredWidth,int desiredHeight)`  - desiredWidth is target width and desiredHeight is target height
+* ` getTransparentSignatureBitmapTrimOnStrokes()`  - returns a transparent signature bitmap, but the triming process is way faster.
+* ` insertStaticText(String text)`  - adds a text at the lower end of the sign-pad (text-attributes cannot be modified).
+* ` addStaticText(String text)(String text)`  - adds a text at the lower end of the sign-pad and returns the TextBuilder, where you can changed text-attributes. You have to run "build" to add the text.
+* ` setHintText(String/int text)`  - adds a hint-text at the middle of the sign-pad, which dissappears as soon as someone signs (will be automaticaly shown when it is cleared again).
+* ` setHintTextColor(int color)`  - sets the color of the hint-text.
+* ` setHintTextColorRes(int color)`  - sets the color of the hint-text.
+* ` setHintBorderColor(int color)`  - sets the border-color of the hint-text.
+* ` setHintBorderColorRes(int color)`  - sets the border-color of the hint-text.
+
+
+
 
 Bug fixed
 * SVG double click bug fixed
@@ -32,8 +40,8 @@ implementation 'com.github.devjta:SilkySignature:a3506fe4f3'
 or via Maven
 ```xml
 <dependency>
-<groupId>com.williamww</groupId>
-<artifactId>silky-signature</artifactId>
+<groupId>com.github.devjta</groupId>
+<artifactId>SilkySignature</artifactId>
 <version>a3506fe4f3</version>
 <type>aar</type>
 </dependency>
@@ -77,6 +85,7 @@ public void onClear() {
 });
 ```
 To get signature image
+* `getTransparentSignatureBitmapTrimOnStrokes()` - A signature bitmap with a transparent background which trims the bitmap very fast.
 * `getSignatureBitmap()` - A signature bitmap with a white background.
 * `getTransparentSignatureBitmap()` - A signature bitmap with a transparent background.
 * `getSignatureSvg()` - A signature Scalable Vector Graphics document.
