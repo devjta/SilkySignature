@@ -927,10 +927,10 @@ public class SignaturePad extends View {
                 }
                 float textHeight = paint.descent() - paint.ascent();
                 float x = getWidth() / 2 - textLen / 2; //default horizontal is center
-                float y = getHeight() / 2 + (textHeight);
+                float y = getHeight() / 2 + (textHeight / 2);
                 mSignatureBitmapCanvas.drawText(hintText, x, y, paint);
-                int horizontalPadding = convertPxToDp(20);//(int) (getWidth() * 0.05f);
-                int verticalPadding = convertPxToDp(20);//convertDpToPx(20);//(int) (getHeight() * 0.05f);
+                int horizontalPadding = convertPxToDp(30);//(int) (getWidth() * 0.05f);
+                int verticalPadding = convertPxToDp(30);//convertDpToPx(20);//(int) (getHeight() * 0.05f);
                 int horizontalLength = (int) (getWidth() * 0.2f);
                 int verticalLength = (int) (getHeight() * 0.2f);
                 Path path = new Path();
