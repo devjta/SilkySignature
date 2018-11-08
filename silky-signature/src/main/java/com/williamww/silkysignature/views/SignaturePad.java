@@ -6,13 +6,18 @@ import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.support.annotation.ColorInt;
+import android.support.annotation.ColorRes;
+import android.support.annotation.Nullable;
+import android.support.annotation.StringRes;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -35,6 +40,7 @@ import java.util.List;
 
 
 public class SignaturePad extends View {
+    private static final int HINT_TEXT_SIZE_START = 60;
     private static final int TEXT_PADDING_PX = 10;
     public static final int TEXT_HORIZONTAL_ALIGN_CENTER = 1;
     public static final int TEXT_HORIZONTAL_ALIGN_START = 2;
@@ -84,17 +90,33 @@ public class SignaturePad extends View {
     private Canvas mSignatureBitmapCanvas = null;
     protected float strokeLeft = -1, strokeRight = -1, strokeTop = -1, strokeBottom = -1;
     protected TextBuilder lastText;
+    private String hintText = null;
+    private boolean hintCleared = false;
+    private int hintTextColor = Color.BLACK, hintBorderColor = Color.BLACK;
 
+    /**
+     *
+     * @param context
+     */
     public SignaturePad(Context context){
         super(context);
         init(null);
     }
 
+    /**
+     *
+     * @param context
+     * @param attrs
+     */
     public SignaturePad(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(attrs);
     }
 
+    /**
+     *
+     * @param attrs
+     */
     protected void init(AttributeSet attrs){
         TypedArray a;
         if(attrs != null) {
@@ -197,11 +219,19 @@ public class SignaturePad extends View {
         invalidate();
     }
 
+
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (!isEnabled())
             return false;
-
+        if(!hintCleared){
+            //removes the hint
+            if(mSignatureBitmapCanvas != null) {
+                mSignatureBitmapCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+            }
+            hintCleared = true;
+        }
         float eventX = event.getX();
         float eventY = event.getY();
 
@@ -243,6 +273,10 @@ public class SignaturePad extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        //if there is a hint-text set and the canvas is still empty - create it, because this method will add
+        if(this.hintText != null && !this.hintText.isEmpty() && mSignatureBitmapCanvas == null){
+            ensureSignatureBitmap();
+        }
         if (mSignatureBitmap != null) {
             canvas.drawBitmap(mSignatureBitmap, 0, 0, mPaint);
         }
@@ -658,7 +692,7 @@ public class SignaturePad extends View {
     }
 
     /**
-     *
+     * Method returns the transparent picture
      * @return
      */
     public Bitmap getTransparentSignatureBitmapTrimOnStrokes() {
@@ -763,6 +797,31 @@ public class SignaturePad extends View {
         return lastText;
     }
 
+    public void setHintText(@StringRes int hintText){
+        setHintText(this.getContext().getString(hintText));
+    }
+
+    public void setHintText(@Nullable String hintText){
+        this.hintText = hintText;
+    }
+
+    public void setHintTextColor(int color){
+        this.hintTextColor = color;
+    }
+
+    public void setHintTextColorRes(@ColorRes int resourceColor){
+        setHintTextColor(getResources().getColor(resourceColor));
+    }
+
+    public void setHintBorderColor(int color){
+        this.hintBorderColor = color;
+    }
+
+    public void setHintBorderColorRes(@ColorRes int resourceColor){
+        setHintBorderColor(getResources().getColor(resourceColor));
+    }
+
+
     private ControlTimedPoints calculateCurveControlPoints(TimedPoint s1, TimedPoint s2, TimedPoint s3) {
         float dx1 = s1.x - s2.x;
         float dy1 = s1.y - s2.y;
@@ -840,11 +899,61 @@ public class SignaturePad extends View {
         }
     }
 
+    /**
+     * Method create the transparent image + canvas and also adds the hint text + border on it
+     */
     private void ensureSignatureBitmap() {
         if (mSignatureBitmap == null) {
             mSignatureBitmap = Bitmap.createBitmap(getWidth(), getHeight(),
                     Bitmap.Config.ARGB_8888);
             mSignatureBitmapCanvas = new Canvas(mSignatureBitmap);
+            hintCleared = false;
+            if(this.hintText != null){
+                Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+                paint.setColor(Color.BLACK);
+                paint.setTextSize(HINT_TEXT_SIZE_START * getResources().getDisplayMetrics().density);
+                float textLen = paint.measureText(hintText);
+                int tmpSize = HINT_TEXT_SIZE_START;
+                int width = (int) (getWidth() * 0.85f);
+                while(textLen > width){
+                    tmpSize--;
+                    if(tmpSize == 0){
+                        //never 0 as size, take at least 1
+                        paint.setTextSize(1 * getResources().getDisplayMetrics().density);
+                        break;
+                    }
+                    paint.setTextSize(tmpSize * getResources().getDisplayMetrics().density);
+                    textLen = paint.measureText(hintText);
+                }
+                float textHeight = paint.descent() - paint.ascent();
+                float x = getWidth() / 2 - textLen / 2; //default horizontal is center
+                float y = getHeight() / 2 - (textHeight / 2);
+                mSignatureBitmapCanvas.drawText(hintText, x, y, paint);
+                int horizontalPadding = (int) (getWidth() * 0.05f);
+                int verticalPadding = (int) (getHeight() * 0.05f);
+                int horizontalLength = (int) (getWidth() * 0.2f);
+                int verticalLength = (int) (getHeight() * 0.2f);
+                Path path = new Path();
+                path.moveTo(horizontalPadding, verticalPadding + verticalLength);
+                path.lineTo(horizontalPadding, verticalPadding); //left upper corner
+                path.lineTo(horizontalPadding + horizontalLength, verticalPadding);
+                path.moveTo(getWidth() - horizontalPadding - horizontalLength, verticalPadding);
+                path.lineTo(getWidth() - horizontalPadding, verticalPadding); //right upper corner
+                path.lineTo(getWidth() - horizontalPadding, verticalPadding + verticalLength);
+                path.moveTo(getWidth() - horizontalPadding, getHeight() - verticalPadding - verticalLength);
+                path.lineTo(getWidth() - horizontalPadding, getHeight() - verticalPadding); //right lower corner
+                path.lineTo(getWidth() - horizontalPadding- horizontalLength, getHeight() - verticalPadding);
+                path.moveTo(horizontalPadding + horizontalLength, getHeight() - verticalPadding);
+                path.lineTo(horizontalPadding, getHeight() - verticalPadding);
+                path.lineTo(horizontalPadding, getHeight() - verticalPadding - verticalLength);
+                Paint pathPaint = new Paint();
+                pathPaint.setStrokeWidth(convertPxToDp(15));
+                //rect.setColor(Color.rgb(255,0,0));
+                pathPaint.setColor(Color.BLACK);
+                pathPaint.setStyle(Paint.Style.STROKE);
+                pathPaint.setPathEffect(new DashPathEffect(new float[]{20, 20,}, 0));
+                mSignatureBitmapCanvas.drawPath(path, pathPaint);
+            }
         }
     }
 
